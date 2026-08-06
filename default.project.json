@@ -1,0 +1,33 @@
+{
+  "name": "ArkhaeonStoneGuardian",
+  "tree": {
+    "$className": "DataModel",
+
+    "ReplicatedStorage": {
+      "$className": "ReplicatedStorage",
+      "ArkhaeonBoss": {
+        "$path": "src/shared/ArkhaeonBoss"
+      }
+    },
+
+    "ServerScriptService": {
+      "$className": "ServerScriptService",
+      "StoneGuardian": {
+        "$path": "src/server/StoneGuardian"
+      },
+      "BossBootstrap": {
+        "$path": "src/server/BossBootstrap.server.lua"
+      }
+    },
+
+    "StarterPlayer": {
+      "$className": "StarterPlayer",
+      "StarterPlayerScripts": {
+        "$className": "StarterPlayerScripts",
+        "BossClient": {
+          "$path": "src/client/BossClient.client.lua"
+        }
+      }
+    }
+  }
+}
