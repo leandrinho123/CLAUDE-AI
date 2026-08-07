@@ -173,18 +173,25 @@ function Attacks.Shockwave(boss: BossCtx, _targetChar: Model)
 
 	VfxRemote:FireAllClients("Shockwave", center, cfg.MaxRadius)
 
-	-- O anel avança de StartRadius até MaxRadius. Cada jogador só pode ser
-	-- atingido UMA vez (quando o anel passa por ele).
-	local hit: { [Player]: boolean } = {}
-	local radius = cfg.StartRadius
+	-- A frente da onda avança do centro (0) até MaxRadius. Quando ela alcança
+	-- um jogador (dist <= raio atual), ele é resolvido UMA vez:
+	--   • no chão  -> toma dano + knockback;
+	--   • no ar (pulou no instante em que a onda chegou) -> desviou, escapa.
+	-- Começar em 0 (e não em StartRadius) elimina o safe-spot no centro: quem
+	-- está colado no boss é o PRIMEIRO a ter que pular.
+	local resolved: { [Player]: boolean } = {}
+	local radius = 0
 	while radius < cfg.MaxRadius and boss.isAlive() do
-		local inner = radius - cfg.Width * 0.5
-		local outer = radius + cfg.Width * 0.5
-		for _, v in collectVictims(center, outer) do
-			if not hit[v.player] and v.dist >= inner then
-				hit[v.player] = true
-				v.humanoid:TakeDamage(cfg.Damage * boss.damageMult())
-				applyKnockback(v.root, center, cfg.Knockback)
+		for _, v in collectVictims(center, radius) do
+			if not resolved[v.player] then
+				resolved[v.player] = true
+				local state = v.humanoid:GetState()
+				local airborne = state == Enum.HumanoidStateType.Freefall
+					or state == Enum.HumanoidStateType.Jumping
+				if not airborne then
+					v.humanoid:TakeDamage(cfg.Damage * boss.damageMult())
+					applyKnockback(v.root, center, cfg.Knockback)
+				end
 			end
 		end
 		radius += cfg.ExpandSpeed * task.wait()

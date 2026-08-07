@@ -72,7 +72,8 @@ BossConfig.Attacks = {
 		ExpandSpeed = 55,     -- studs/s de expansão do anel
 		Cooldown = 11,
 		Telegraph = 1.6,
-		Width = 8,            -- espessura do anel (janela de acerto)
+		Width = 8,            -- espessura visual do anel (cosmético; a resolução
+		                     -- usa a frente da onda: pule quando ela te alcançar)
 		Knockback = 55,
 	},
 	BoulderBarrage = {        -- Fase 2: chuva de pedregulhos telegrafados
@@ -97,5 +98,9 @@ BossConfig.Rewards = {
 	Currency = 500,
 	XP = 1_200,
 }
+
+-- Respawn --------------------------------------------------------------------
+-- Segundos após a morte até o Guardião renascer na arena. 3600 = 1 hora.
+BossConfig.RespawnDelay = 3600
 
 return BossConfig
