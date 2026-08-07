@@ -17,7 +17,6 @@
 ]]
 
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local BossPkg = ReplicatedStorage:WaitForChild("ArkhaeonBoss")
@@ -91,6 +90,10 @@ function StoneGuardian.new(spawnCFrame: CFrame): StoneGuardian
 	}, StoneGuardian) :: StoneGuardian
 
 	-- Núcleo apagado no início.
+	if not self.core then
+		warn("[StoneGuardian] modelo sem parte 'Core' — a lógica de ponto fraco "
+			.. "funciona, mas o brilho do núcleo exposto não terá indicador visual.")
+	end
 	self:_setCoreGlow(false)
 
 	-- Morte via Humanoid (rede de segurança caso algo zere a vida direto).

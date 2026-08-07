@@ -120,12 +120,19 @@ function BossModelBuilder.spawn(spawnCFrame: CFrame): Model
 	local model: Model = if template then template:Clone() else buildProcedural()
 
 	-- Segurança: garante o contrato mesmo num modelo do Clay que veio incompleto.
-	assert(model:FindFirstChildOfClass("Humanoid"), "StoneGuardian precisa de um Humanoid")
+	local humanoid = model:FindFirstChildOfClass("Humanoid")
+	assert(humanoid, "StoneGuardian precisa de um Humanoid")
 	if not model.PrimaryPart then
 		model.PrimaryPart = model:FindFirstChild("HumanoidRootPart") :: BasePart?
 			or model:FindFirstChildWhichIsA("BasePart")
 	end
 	assert(model.PrimaryPart, "StoneGuardian precisa de uma PrimaryPart")
+
+	-- Rig customizado (colosso) NÃO tem junta "Neck" padrão. Com RequiresNeck
+	-- ligado (default), o Humanoid pode morrer sozinho no spawn / se comportar
+	-- mal. Desligar é o correto e seguro para NPC de rig próprio — vale tanto
+	-- pro procedural quanto pro modelo do Clay.
+	humanoid.RequiresNeck = false
 
 	model.Parent = workspace
 	model:PivotTo(spawnCFrame)
