@@ -7,8 +7,8 @@
 	Prioridade:
 	  1) Se existir um modelo pronto (do Clay) em ServerStorage/ReplicatedStorage
 	     chamado "StoneGuardian", clona ELE. É o caminho de produção.
-	  2) Senão, CONSTRÓI um coloso de pedra procedural (blocos) pra o sistema
-	     rodar out-of-the-box, sem depender de arte. É o caminho de protótipo.
+	  2) Senão, CONSTRÓI um golem de pedras arredondadas (arenito) procedural
+	     pra o sistema rodar out-of-the-box, sem depender de arte. Protótipo.
 
 	Contrato do modelo (o resto do código depende disto):
 	  Model
@@ -21,8 +21,10 @@
 local BossModelBuilder = {}
 
 local MODEL_NAME = "StoneGuardian"
-local STONE = Color3.fromRGB(96, 92, 86)
-local STONE_DARK = Color3.fromRGB(64, 60, 55)
+-- Paleta arenito (referência: golem de pedras arredondadas claras com fendas).
+local SAND = Color3.fromRGB(203, 191, 169)      -- pedra clara
+local SAND_MID = Color3.fromRGB(176, 162, 139)  -- meio-tom
+local SAND_DARK = Color3.fromRGB(146, 132, 111) -- fendas / sombra
 local CORE_COLOR = Color3.fromRGB(120, 60, 200) -- roxo de energia arcana
 
 local function findTemplate(): Model?
@@ -35,20 +37,6 @@ local function findTemplate(): Model?
 	return nil
 end
 
-local function makePart(name: string, size: Vector3, color: Color3, parent: Instance): BasePart
-	local p = Instance.new("Part")
-	p.Name = name
-	p.Size = size
-	p.Color = color
-	p.Material = Enum.Material.Slate
-	p.Anchored = false
-	p.CanCollide = true
-	p.TopSurface = Enum.SurfaceType.Smooth
-	p.BottomSurface = Enum.SurfaceType.Smooth
-	p.Parent = parent
-	return p
-end
-
 local function weld(a: BasePart, b: BasePart, offset: CFrame)
 	-- Motor6D permite animar depois; Weld puro bastaria se for estático.
 	local m = Instance.new("Motor6D")
@@ -59,40 +47,113 @@ local function weld(a: BasePart, b: BasePart, offset: CFrame)
 	b.CFrame = a.CFrame * offset
 end
 
--- Constrói um guardião blocky com raiz, torso, cabeça, braços, pernas e núcleo.
+--[[
+	Constrói um GOLEM de pedras arredondadas (referência: colosso de arenito,
+	baixote e possante — ombros enormes, cabeça pequena afundada, braços grossos
+	com punhos perto do chão, pernas curtas).
+
+	Estratégia de rig robusto para NPC de rig próprio:
+	  • HumanoidRootPart é o ÚNICO corpo de colisão (invisível). O resto é
+	    cosmético: CanCollide=false + Massless=true, pra a física não brigar
+	    com dezenas de esferas nem desequilibrar o Humanoid.
+	  • "Front" do personagem é -Z (convenção do Roblox p/ virar ao andar):
+	    cabeça, punhos, pés e o núcleo apontam pra -Z.
+	  • Esferas (PartType.Ball) com Size não-uniforme viram elipsoides — é o
+	    que dá o aspecto de "pedra" sem precisar de mesh.
+]]
 local function buildProcedural(): Model
 	local model = Instance.new("Model")
 	model.Name = MODEL_NAME
 
-	-- Raiz invisível: é a PrimaryPart e o HumanoidRootPart.
-	local root = makePart("HumanoidRootPart", Vector3.new(6, 8, 4), STONE, model)
+	-- Raiz de colisão invisível: PrimaryPart + HumanoidRootPart.
+	local root = Instance.new("Part")
+	root.Name = "HumanoidRootPart"
+	root.Size = Vector3.new(4, 5, 3)
 	root.Transparency = 1
-	root.CanCollide = false
+	root.CanCollide = true
+	root.Parent = model
 	model.PrimaryPart = root
 
-	local torso = makePart("Torso", Vector3.new(8, 9, 5), STONE, model)
+	-- Torso: massa central. É o "pai" das demais pedras (hierarquia
+	-- root → torso → membros ajuda uma animação futura).
+	local torso = Instance.new("Part")
+	torso.Name = "Torso"
+	torso.Shape = Enum.PartType.Ball
+	torso.Size = Vector3.new(9, 8.5, 7.5)
+	torso.Color = SAND
+	torso.Material = Enum.Material.Sandstone
+	torso.CanCollide = false
+	torso.Massless = true
+	torso.Parent = model
 	weld(root, torso, CFrame.new(0, 0.5, 0))
 
-	local head = makePart("Head", Vector3.new(4, 4, 4), STONE_DARK, model)
-	weld(torso, head, CFrame.new(0, 6.5, 0))
+	-- Helper: adiciona uma "pedra" (elipsoide) colada no torso, numa posição
+	-- relativa. `rotate` dá uma leve rotação aleatória p/ variedade orgânica.
+	local function rock(name: string, size: Vector3, color: Color3, pos: Vector3, rotate: boolean?): BasePart
+		local p = Instance.new("Part")
+		p.Name = name
+		p.Shape = Enum.PartType.Ball
+		p.Size = size
+		p.Color = color
+		p.Material = Enum.Material.Sandstone
+		p.CanCollide = false
+		p.Massless = true
+		p.Parent = model
+		local rot = if rotate
+			then CFrame.Angles(
+				math.rad(math.random(-18, 18)),
+				math.rad(math.random(-30, 30)),
+				math.rad(math.random(-18, 18))
+			)
+			else CFrame.new()
+		weld(torso, p, CFrame.new(pos) * rot)
+		return p
+	end
 
-	local lArm = makePart("LeftArm", Vector3.new(3, 9, 3), STONE, model)
-	weld(torso, lArm, CFrame.new(-6, 0, 0))
-	local rArm = makePart("RightArm", Vector3.new(3, 9, 3), STONE, model)
-	weld(torso, rArm, CFrame.new(6, 0, 0))
+	-- Massa do corpo (barriga pesada + peito).
+	rock("Belly", Vector3.new(8.5, 7, 7.5), SAND_MID, Vector3.new(0, -3.5, -0.3))
+	rock("Chest", Vector3.new(8, 6, 6.5), SAND, Vector3.new(0, 2.6, -0.4))
 
-	local lLeg = makePart("LeftLeg", Vector3.new(3.5, 8, 3.5), STONE_DARK, model)
-	weld(torso, lLeg, CFrame.new(-2.2, -8.5, 0))
-	local rLeg = makePart("RightLeg", Vector3.new(3.5, 8, 3.5), STONE_DARK, model)
-	weld(torso, rLeg, CFrame.new(2.2, -8.5, 0))
+	-- Ombros enormes (assinatura da referência).
+	rock("LeftShoulder", Vector3.new(6.2, 6, 6), SAND, Vector3.new(-6, 3, 0))
+	rock("RightShoulder", Vector3.new(6.2, 6, 6), SAND, Vector3.new(6, 3, 0))
 
-	-- Núcleo (ponto fraco) encravado no peito. Começa apagado.
-	local core = makePart("Core", Vector3.new(2.5, 2.5, 1.5), CORE_COLOR, model)
+	-- Cabeça pequena, afundada entre os ombros e levemente à frente (-Z).
+	rock("Head", Vector3.new(3.6, 3.6, 3.6), SAND_MID, Vector3.new(0, 4.2, -0.9))
+	rock("Brow", Vector3.new(3, 1.6, 2.4), SAND_DARK, Vector3.new(0, 5.5, -0.9), true)
+
+	-- Braços grossos que descem; punhos grandes perto do chão (cavador).
+	rock("LeftUpperArm", Vector3.new(4.2, 5.5, 4.2), SAND_MID, Vector3.new(-7, -1.4, -0.4))
+	rock("RightUpperArm", Vector3.new(4.2, 5.5, 4.2), SAND_MID, Vector3.new(7, -1.4, -0.4))
+	rock("LeftFist", Vector3.new(5, 5, 5), SAND, Vector3.new(-7.3, -6.6, -1.2))
+	rock("RightFist", Vector3.new(5, 5, 5), SAND, Vector3.new(7.3, -6.6, -1.2))
+
+	-- Pernas curtas e grossas + pés achatados apontando à frente.
+	rock("LeftLeg", Vector3.new(4.6, 4.6, 4.6), SAND_MID, Vector3.new(-3, -7.4, 0))
+	rock("RightLeg", Vector3.new(4.6, 4.6, 4.6), SAND_MID, Vector3.new(3, -7.4, 0))
+	rock("LeftFoot", Vector3.new(4.6, 3, 5.6), SAND_DARK, Vector3.new(-3, -9.8, -1))
+	rock("RightFoot", Vector3.new(4.6, 3, 5.6), SAND_DARK, Vector3.new(3, -9.8, -1))
+
+	-- Pedras de detalhe (variam a silhueta, dão o look "empilhado").
+	rock("Rock1", Vector3.new(2.6, 2.4, 2.6), SAND_DARK, Vector3.new(-4.5, 5.4, 1.5), true)
+	rock("Rock2", Vector3.new(2.4, 2.2, 2.4), SAND_DARK, Vector3.new(4.5, 5.2, 1.6), true)
+	rock("Rock3", Vector3.new(3, 2.6, 3), SAND_MID, Vector3.new(0, 0, 3.6), true)   -- costas
+	rock("Rock4", Vector3.new(2.2, 2, 2.2), SAND_DARK, Vector3.new(-2.6, -1, 3.4), true)
+	rock("Rock5", Vector3.new(2.2, 2, 2.2), SAND_DARK, Vector3.new(2.6, -1, 3.4), true)
+
+	-- Núcleo (ponto fraco) encravado no peito, na frente (-Z). Começa apagado.
+	local core = Instance.new("Part")
+	core.Name = "Core"
+	core.Shape = Enum.PartType.Ball
+	core.Size = Vector3.new(2.8, 2.8, 1.6)
+	core.Color = CORE_COLOR
 	core.Material = Enum.Material.Neon
 	core.CanCollide = false
+	core.Massless = true
 	core.Transparency = 0.35
 	core:SetAttribute("WeakPoint", true)
-	weld(torso, core, CFrame.new(0, 1, -2.7))
+	core.Parent = model
+	weld(torso, core, CFrame.new(0, 0.6, -3.7))
 	local light = Instance.new("PointLight")
 	light.Color = CORE_COLOR
 	light.Range = 14
@@ -108,8 +169,9 @@ local function buildProcedural(): Model
 	humanoid.HealthDisplayDistance = 0
 	humanoid.Parent = model
 
-	-- HipHeight garante que ele fica em pé sobre as pernas.
-	humanoid.HipHeight = 9
+	-- Distância da raiz ao chão. Os pés vão a ~-11 studs da raiz; se ele
+	-- flutuar ou afundar no playtest, ajuste este valor.
+	humanoid.HipHeight = 11
 
 	return model
 end
