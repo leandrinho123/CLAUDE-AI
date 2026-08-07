@@ -36,25 +36,42 @@ local PLAYER_HIT_INTERVAL = 0.4 -- cadência mín. entre acertos do MESMO jogado
 
 -- ---------------------------------------------------------------------------
 
-local boss = StoneGuardian.new(SPAWN_CFRAME)
+-- `currentBoss` aponta sempre para a instância viva. Como o boss renasce, o
+-- handler de combate lê esta variável (não uma referência fixa) para acertar
+-- o Guardião atual — nunca um cadáver já destruído.
+local currentBoss: StoneGuardian.StoneGuardian? = nil
 
--- Recompensa na morte. Aqui só logamos; conecte à sua economia/quest de verdade.
-boss.onDefeated = function(_b)
-	print(string.format(
-		"[Arkhaeon] %s derrotado! Recompensa: %d moedas, %d XP (por jogador).",
-		BossConfig.Name, BossConfig.Rewards.Currency, BossConfig.Rewards.XP
-	))
-	-- Exemplo de gancho — descomente e ligue ao seu backend:
-	-- for _, player in Players:GetPlayers() do
-	--     Economy.grant(player, BossConfig.Rewards.Currency, BossConfig.Rewards.XP)
-	-- end
+local function spawnBoss()
+	local boss = StoneGuardian.new(SPAWN_CFRAME)
+
+	-- Morte: recompensa + agenda o respawn após RespawnDelay (1 hora).
+	boss.onDefeated = function(_b)
+		print(string.format(
+			"[Arkhaeon] %s derrotado! Recompensa: %d moedas, %d XP (por jogador).",
+			BossConfig.Name, BossConfig.Rewards.Currency, BossConfig.Rewards.XP
+		))
+		-- Exemplo de gancho — descomente e ligue ao seu backend:
+		-- for _, player in Players:GetPlayers() do
+		--     Economy.grant(player, BossConfig.Rewards.Currency, BossConfig.Rewards.XP)
+		-- end
+
+		print(string.format("[Arkhaeon] Guardião renasce em %d s.", BossConfig.RespawnDelay))
+		task.delay(BossConfig.RespawnDelay, spawnBoss)
+	end
+
+	currentBoss = boss
 end
+
+spawnBoss()
 
 -- Combate: o cliente PEDE um acerto; o servidor DECIDE se vale.
 local lastHit: { [Player]: number } = {}
 
 local RequestHit = Remotes.get("RequestHit")
 RequestHit.OnServerEvent:Connect(function(player: Player)
+	local boss = currentBoss
+	if not boss then return end -- entre a morte e o respawn não há boss
+
 	-- 1) rate-limit por jogador (anti-spam / anti auto-clicker exploit)
 	local now = os.clock()
 	local prev = lastHit[player]
