@@ -17,6 +17,9 @@
       },
       "BossBootstrap": {
         "$path": "src/server/BossBootstrap.server.lua"
+      },
+      "DoorScript": {
+        "$path": "src/server/DoorScript.server.lua"
       }
     },
 

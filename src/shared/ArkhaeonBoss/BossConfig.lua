@@ -103,4 +103,10 @@ BossConfig.Rewards = {
 -- Segundos após a morte até o Guardião renascer na arena. 3600 = 1 hora.
 BossConfig.RespawnDelay = 3600
 
+-- Gatilho da porta -----------------------------------------------------------
+-- O boss só nasce depois que o jogador abre a porta. A porta liga este atributo
+-- (booleano) no `workspace`; o BossBootstrap espera por ele. É o "canal" entre
+-- o script da porta e o do boss — mude aqui e vale nos dois.
+BossConfig.DoorReleaseAttribute = "ArkhaeonBossReleased"
+
 return BossConfig

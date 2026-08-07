@@ -8,10 +8,11 @@
 
 	Faz:
 	  • cria os RemoteEvents (idempotente)
-	  • dá spawn do boss num ponto da arena
+	  • ESPERA o jogador abrir a porta (atributo em workspace) e só então dá
+	    spawn do boss na arena
 	  • valida os pedidos de acerto do cliente (RequestHit) — SERVIDOR é a
 	    autoridade: distância, cadência (anti-spam) e existência do golpe
-	  • concede recompensa quando o boss morre
+	  • concede recompensa quando o boss morre + respawn após RespawnDelay
 ]]
 
 local Players = game:GetService("Players")
@@ -62,7 +63,17 @@ local function spawnBoss()
 	currentBoss = boss
 end
 
-spawnBoss()
+-- Gatilho da porta: o boss NÃO nasce no boot. Ele espera o jogador abrir a
+-- porta, que liga BossConfig.DoorReleaseAttribute no workspace. Só então nasce.
+local RELEASE_ATTR = BossConfig.DoorReleaseAttribute
+
+task.spawn(function()
+	while not workspace:GetAttribute(RELEASE_ATTR) do
+		workspace:GetAttributeChangedSignal(RELEASE_ATTR):Wait()
+	end
+	print("[Arkhaeon] Porta aberta — o Guardião desperta.")
+	spawnBoss()
+end)
 
 -- Combate: o cliente PEDE um acerto; o servidor DECIDE se vale.
 local lastHit: { [Player]: number } = {}
@@ -98,4 +109,4 @@ Players.PlayerRemoving:Connect(function(player)
 	lastHit[player] = nil
 end)
 
-print("[Arkhaeon] Guardião de Pedra ativo. Aproxime-se para despertá-lo.")
+print("[Arkhaeon] Aguardando o jogador abrir a porta para liberar o Guardião...")
